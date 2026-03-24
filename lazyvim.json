@@ -1,7 +1,5 @@
 {
   "extras": [
-    "lazyvim.plugins.extras.coding.yanky",
-    "lazyvim.plugins.extras.editor.harpoon2",
     "lazyvim.plugins.extras.lang.angular",
     "lazyvim.plugins.extras.lang.clangd",
     "lazyvim.plugins.extras.lang.cmake",

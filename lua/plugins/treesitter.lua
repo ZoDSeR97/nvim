@@ -18,5 +18,5 @@ return {
             },
             auto_install = false,
         })
-    end,
+    end
 }

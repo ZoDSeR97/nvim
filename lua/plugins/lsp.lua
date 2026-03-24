@@ -3,11 +3,31 @@ return {
     dependencies = {
         "mason-org/mason.nvim",
         "mason-org/mason-lspconfig.nvim",
-        -- Autocompletion sources
-        "hrsh7th/nvim-cmp",
-        "hrsh7th/cmp-nvim-lsp",
-        "hrsh7th/cmp-path",
-        "hrsh7th/cmp-buffer",
+        -- Autocompletion
+        {
+            'saghen/blink.cmp',
+            version = '*',
+            opts = {
+                keymap = { preset = 'default' },
+                appearance = {
+                    use_nvim_cmp_as_default = true,
+                    nerd_font_variant = 'mono',
+                },
+                sources = {
+                    default = { 'lsp', 'path', 'buffer' },
+                },
+                completion = {
+                    documentation = {
+                        auto_show = true,
+                        auto_show_delay_ms = 200,
+                        window = { border = 'rounded' },
+                    },
+                    menu = {
+                        border = 'rounded',
+                    },
+                },
+            },
+        },
     },
     config = function()
         -- Filetypes where auto-formatting is enabled (currently unused)
@@ -114,8 +134,8 @@ return {
         end,
         })
 
-        -- nvim-cmp capabilities
-        local caps = require('cmp_nvim_lsp').default_capabilities()
+        -- blink.cmp capabilities
+        local caps = require('blink.cmp').get_lsp_capabilities()
 
         -- Language server configurations
         vim.lsp.config['luals'] = {
