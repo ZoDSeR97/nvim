@@ -19,6 +19,10 @@
     "rustaceanvim": {
       "rev": "7e13178fd700669a4c1d8fa2d273d25d24fe6fb4",
       "src": "https://github.com/mrcjkb/rustaceanvim"
+    },
+    "vim-moonfly-colors": {
+      "rev": "261664f92ed51cf0c077555b2d4b2530307eac17",
+      "src": "https://github.com/bluz71/vim-moonfly-colors"
     }
   }
 }

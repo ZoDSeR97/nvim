@@ -44,6 +44,11 @@ vim.diagnostic.config({
     float = { border = "rounded" },
 })
 
+vim.lsp.config("*", {
+    capabilities = vim.tbl_deep_extend("force", vim.lsp.protocol.make_client_capabilities(),
+        require("mini.completion").get_lsp_capabilities())
+})
+
 -- C / C++
 vim.lsp.config("clangd", {
     -- Override encoding arrays to prevent common system console rendering encoding conflicts
@@ -51,11 +56,9 @@ vim.lsp.config("clangd", {
         offsetEncoding = { "utf-16" },
     },
 })
-vim.lsp.enable("clangd")
 
 -- BASH
 vim.lsp.config("bashls", {})
-vim.lsp.enable("bashls")
 
 -- GO
 vim.lsp.config("gopls", {
@@ -70,7 +73,6 @@ vim.lsp.config("gopls", {
         },
     },
 })
-vim.lsp.enable("gopls")
 
 -- LUA
 vim.lsp.config("lua_ls", {
@@ -87,19 +89,15 @@ vim.lsp.config("lua_ls", {
         },
     },
 })
-vim.lsp.enable("lua_ls")
 
 -- LATEX
 vim.lsp.config("texlab", {})
-vim.lsp.enable("texlab")
 
 -- TYPESCRIPT / JAVASCRIPT
 vim.lsp.config("ts_ls", {})
-vim.lsp.enable("ts_ls")
 
 -- HELM KUBERNETES
 vim.lsp.config("helm_ls", {})
-vim.lsp.enable("helm_ls")
 
 -- RUST (Handled individually via its dedicated plugin layer)
 vim.g.rustaceanvim = function()
@@ -113,3 +111,5 @@ vim.g.rustaceanvim = function()
         },
     }
 end
+
+vim.lsp.enable(servers)
