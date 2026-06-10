@@ -44,10 +44,27 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 })
 
 vim.api.nvim_create_autocmd("FileType", {
-    pattern = { "lua", "python", "javascript", "typescript", "go", "rust", "c", "markdown" },
-    callback = function()
+    pattern = {
+        -- bashls
+        "sh", "bash",
+        -- gopls
+        "go", "gomod", "gowork", "gotmpl",
+        -- lua_ls
+        "lua",
+        -- texlab
+        "tex", "bib", "plaintex",
+        -- ts_ls
+        "javascript", "typescript", "javascriptreact", "typescriptreact",
+        -- helm_ls
+        "helm",
+        -- rust_analyzer
+        "rs",
+        -- clangd
+        "c", "cpp", "cc", "objc", "objcpp", "cuda", "proto",
+    },
+    callback = function(ev)
         -- Enable native syntax highlighting
-        vim.treesitter.start()
+        vim.treesitter.start(ev.buffer)
 
         -- Use native Tree-sitter code folding
         vim.wo.foldmethod = "expr"
