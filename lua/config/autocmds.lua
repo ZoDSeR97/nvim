@@ -52,15 +52,15 @@ vim.api.nvim_create_autocmd("FileType", {
         -- lua_ls
         "lua",
         -- texlab
-        "tex", "bib", "plaintex",
+        "tex", "bib", "plaintext",
         -- ts_ls
-        "javascript", "typescript", "javascriptreact", "typescriptreact",
+        "js", "ts", "jsx", "tsx",
         -- helm_ls
         "helm",
         -- rust_analyzer
         "rs",
         -- clangd
-        "c", "cpp", "cc", "objc", "objcpp", "cuda", "proto",
+        "c", "cpp", "cc", "h", "hh", "hpp", "objc", "objcpp", "cuda", "proto",
     },
     callback = function(ev)
         -- Enable native syntax highlighting
