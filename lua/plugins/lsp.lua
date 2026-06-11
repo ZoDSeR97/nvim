@@ -1,115 +1,325 @@
-vim.pack.add({
-    "https://github.com/mason-org/mason.nvim",
-    "https://github.com/mason-org/mason-lspconfig.nvim",
-    "https://github.com/neovim/nvim-lspconfig", -- Still needed for baseline metadata mappings
-    "https://github.com/mrcjkb/rustaceanvim"
-})
-
-local servers = {
-    "bashls",
-    "gopls",
-    "lua_ls",
-    "texlab",
-    "ts_ls",
-    "helm_ls",
-    "rust_analyzer", -- Note: internal mason name uses underscore, not hyphen
-    "clangd"
-}
-
--- Mason
-require("mason").setup({
-    ui = {
-        border = "rounded",
-        icons = {
-            package_installed = "✓",
-            package_pending = "➜",
-            package_uninstalled = "✗"
-        }
-    },
-})
-
--- Mason lspconfig bridge
-require("mason-lspconfig").setup({
-    ensure_installed = servers,
-    automatic_installation = true,
-})
-
--- Global LSP Diagnostic UI Tweaks
-vim.diagnostic.config({
-    virtual_text = true,
-    signs = true,
-    update_in_insert = false,
-    underline = true,
-    severity_sort = true,
-    float = { border = "rounded" },
-})
-
-vim.lsp.config("*", {
-    capabilities = vim.tbl_deep_extend("force", vim.lsp.protocol.make_client_capabilities(),
-        require("mini.completion").get_lsp_capabilities())
-})
-
--- C / C++
-vim.lsp.config("clangd", {
-    -- Override encoding arrays to prevent common system console rendering encoding conflicts
-    capabilities = {
-        offsetEncoding = { "utf-16" },
-    },
-})
-
--- BASH
-vim.lsp.config("bashls", {})
-
--- GO
-vim.lsp.config("gopls", {
-    settings = {
-        gopls = {
-            analyses = {
-                unusedparams = true, -- Warn about unused parameters
-                shadow = true,       -- Warn about variable shadowing
-            },
-            staticcheck = true,      -- Enables advanced static analysis
-            gofumpt = true,          -- Uses stricter standard formatting rules
-        },
-    },
-})
-
--- LUA
-vim.lsp.config("lua_ls", {
-    settings = {
-        Lua = {
-            diagnostics = {
-                globals = { "vim" },
-            },
-            workspace = {
-                library = vim.api.nvim_get_runtime_file("", true),
-                checkThirdParty = false,
-            },
-            telemetry = { enable = false },
-        },
-    },
-})
-
--- LATEX
-vim.lsp.config("texlab", {})
-
--- TYPESCRIPT / JAVASCRIPT
-vim.lsp.config("ts_ls", {})
-
--- HELM KUBERNETES
-vim.lsp.config("helm_ls", {})
-
--- RUST (Handled individually via its dedicated plugin layer)
-vim.g.rustaceanvim = function()
-    return {
-        server = {
-            default_settings = {
-                ["rust-analyzer"] = {
-                    checkOnSave = { command = "clippy" },
+return {
+    'neovim/nvim-lspconfig',
+    dependencies = {
+        "mason-org/mason.nvim",
+        "mason-org/mason-lspconfig.nvim",
+        -- Autocompletion
+        {
+            'saghen/blink.cmp',
+            version = '*',
+            opts = {
+                keymap = { preset = 'default' },
+                appearance = {
+                    use_nvim_cmp_as_default = true,
+                    nerd_font_variant = 'mono',
+                },
+                sources = {
+                    default = { 'lsp', 'path', 'buffer' },
+                },
+                completion = {
+                    documentation = {
+                        auto_show = true,
+                        auto_show_delay_ms = 200,
+                        window = { border = 'rounded' },
+                    },
+                    menu = {
+                        border = 'rounded',
+                    },
                 },
             },
         },
-    }
-end
+    },
+    config = function()
+        -- Filetypes where auto-formatting is enabled (currently unused)
+        local autoformat_filetypes = {
+            'lua', 'css', 'scss', 'less', 'php', 'javascript', 'javascriptreact',
+            'typescript', 'typescriptreact', 'typescript.tsx', 'zig', 'zir',
+            'nix', 'rust', 'c', 'cpp', 'c3', 'd', 'json', 'jsonc',
+            'haskell', 'lhaskell', 'go', 'gomod', 'gowork', 'gotmpl',
+            'templ',
+        }
 
-vim.lsp.enable(servers)
+        -- blink.cmp capabilities
+        local capabilities = require('blink.cmp').get_lsp_capabilities(vim.lsp.protocol.make_client_capabilities())
+
+        -- Global LSP settings (applies to all servers unless overridden)
+        vim.lsp.config('*', {
+            root_markers = { '.git' },
+            capabilities = capabilities
+        })
+
+        -- Diagnostic configuration
+        vim.diagnostic.config({
+            virtual_text  = true,
+            severity_sort = true,
+            float         = {
+                style  = 'minimal',
+                border = 'rounded',
+                source = 'if_many',
+                header = '',
+                prefix = '',
+            },
+            signs         = {
+                text = {
+                    [vim.diagnostic.severity.ERROR] = '✘',
+                    [vim.diagnostic.severity.WARN]  = '▲',
+                    [vim.diagnostic.severity.HINT]  = '⚑',
+                    [vim.diagnostic.severity.INFO]  = '»',
+                },
+            },
+        })
+
+        -- Override floating preview window to use rounded borders and wrapping
+        local orig = vim.lsp.util.open_floating_preview
+        ---@diagnostic disable-next-line: duplicate-set-field
+        function vim.lsp.util.open_floating_preview(contents, syntax, opts, ...)
+            opts            = opts or {}
+            opts.border     = opts.border or 'rounded'
+            opts.max_width  = opts.max_width or 80
+            opts.max_height = opts.max_height or 24
+            opts.wrap       = opts.wrap ~= false
+            return orig(contents, syntax, opts, ...)
+        end
+
+        -- Autocmd that attaches to every LSP server
+        vim.api.nvim_create_autocmd('LspAttach', {
+            group = vim.api.nvim_create_augroup('my.lsp', {}),
+            callback = function(args)
+                local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
+                local buf    = args.buf
+                local map    = function(mode, lhs, rhs)
+                    vim.keymap.set(mode, lhs, rhs, { buffer = buf })
+                end
+
+                -- Basic keymaps
+                map('n', 'K', vim.lsp.buf.hover)
+                map('n', 'gd', vim.lsp.buf.definition)
+                map('n', 'gD', vim.lsp.buf.declaration)
+                map('n', 'gi', vim.lsp.buf.implementation)
+                map('n', 'go', vim.lsp.buf.type_definition)
+                map('n', 'gr', vim.lsp.buf.references)
+                map('n', 'gs', vim.lsp.buf.signature_help)
+                map('n', 'gl', vim.diagnostic.open_float)
+                map('n', '<F2>', vim.lsp.buf.rename)
+                map({ 'n', 'x' }, '<F3>', function()
+                    vim.lsp.buf.format({ async = true })
+                end)
+                map('n', '<F4>', vim.lsp.buf.code_action)
+
+                -- Document highlighting
+                if client:supports_method('textDocument/documentHighlight') then
+                    local highlight_augroup = vim.api.nvim_create_augroup('my.lsp.highlight', { clear = false })
+                    vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
+                        buffer = buf,
+                        group = highlight_augroup,
+                        callback = vim.lsp.buf.document_highlight,
+                    })
+                    vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
+                        buffer = buf,
+                        group = highlight_augroup,
+                        callback = vim.lsp.buf.clear_references,
+                    })
+                end
+
+                -- Auto-format on save (exclude certain filetypes)
+                local excluded_filetypes = { php = true, c = true, cpp = true }
+                if not client:supports_method('textDocument/willSaveWaitUntil')
+                    and client:supports_method('textDocument/formatting')
+                    and not excluded_filetypes[vim.bo[buf].filetype]
+                then
+                    vim.api.nvim_create_autocmd('BufWritePre', {
+                        group = vim.api.nvim_create_augroup('my.lsp.format', { clear = false }),
+                        buffer = buf,
+                        callback = function()
+                            vim.lsp.buf.format({ bufnr = buf, id = client.id, timeout_ms = 1000 })
+                        end,
+                    })
+                end
+            end,
+        })
+
+        -- Language server configurations
+        vim.lsp.config['luals'] = {
+            cmd = { 'lua-language-server' },
+            filetypes = { 'lua' },
+            root_markers = { { '.luarc.json', '.luarc.jsonc' }, '.git' },
+            settings = {
+                Lua = {
+                    runtime = { version = 'LuaJIT' },
+                    diagnostics = { globals = { 'vim' } },
+                    workspace = {
+                        checkThirdParty = false,
+                        library = vim.api.nvim_get_runtime_file('', true),
+                    },
+                    telemetry = { enable = false },
+                },
+            },
+        }
+
+        vim.lsp.config['cssls'] = {
+            cmd = { 'vscode-css-language-server', '--stdio' },
+            filetypes = { 'css', 'scss', 'less' },
+            root_markers = { 'package.json', '.git' },
+            settings = {
+                css = { validate = true },
+                scss = { validate = true },
+                less = { validate = true },
+            },
+        }
+
+        vim.lsp.config['phpls'] = {
+            cmd = { 'intelephense', '--stdio' },
+            filetypes = { 'php' },
+            root_markers = { 'composer.json', '.git' },
+            settings = {
+                intelephense = {
+                    files = {
+                        maxSize = 5000000, -- default 5MB
+                    },
+                },
+            },
+        }
+
+        vim.lsp.config['ts_ls'] = {
+            cmd = { 'typescript-language-server', '--stdio' },
+            filetypes = {
+                'javascript', 'javascriptreact', 'javascript.jsx',
+                'typescript', 'typescriptreact', 'typescript.tsx',
+            },
+            root_markers = { 'package.json', 'tsconfig.json', 'jsconfig.json', '.git' },
+            settings = {
+                completions = {
+                    completeFunctionCalls = true,
+                },
+            },
+        }
+
+        vim.lsp.config['zls'] = {
+            cmd = { 'zls' },
+            filetypes = { 'zig', 'zir' },
+            root_markers = { 'zls.json', 'build.zig', '.git' },
+            settings = {
+                zls = {
+                    enable_build_on_save = true,
+                    build_on_save_step = 'install',
+                    warn_style = false,
+                    enable_snippets = true,
+                },
+            },
+        }
+
+        vim.lsp.config['nil_ls'] = {
+            cmd = { 'nil' },
+            filetypes = { 'nix' },
+            root_markers = { 'flake.nix', 'default.nix', '.git' },
+            settings = {
+                ['nil'] = {
+                    formatting = {
+                        command = { 'alejandra' },
+                    },
+                },
+            },
+        }
+
+        vim.lsp.config['rust_analyzer'] = {
+            cmd = { 'rust-analyzer' },
+            filetypes = { 'rust' },
+            root_markers = { 'Cargo.toml', 'rust-project.json', '.git' },
+            settings = {
+                ['rust-analyzer'] = {
+                    cargo = { allFeatures = true },
+                    formatting = {
+                        command = { 'rustfmt' },
+                    },
+                },
+            },
+        }
+
+        vim.lsp.config['clangd'] = {
+            cmd = {
+                'clangd',
+                '--background-index',
+                '--clang-tidy',
+                '--header-insertion=never',
+                '--completion-style=detailed',
+                '--query-driver=/nix/store/*-gcc-*/bin/gcc*,/nix/store/*-clang-*/bin/clang*,/run/current-system/sw/bin/cc*',
+            },
+            filetypes = { 'c', 'cpp', 'objc', 'objcpp' },
+            root_markers = { 'compile_commands.json', '.clangd', 'configure.ac', 'Makefile', '.git' },
+            init_options = {
+                fallbackFlags = { '-std=c23' }, -- Default to C23
+            },
+        }
+
+        vim.lsp.config['c3lsp'] = {
+            cmd = { 'c3-lsp' },
+            filetypes = { 'c3' },
+            root_markers = { 'project.json', '.git' },
+        }
+
+        vim.lsp.config['serve_d'] = {
+            cmd = { 'serve-d' },
+            filetypes = { 'd' },
+            root_markers = { 'dub.sdl', 'dub.json', '.git' },
+        }
+
+        vim.lsp.config['jsonls'] = {
+            cmd = { 'vscode-json-languageserver', '--stdio' },
+            filetypes = { 'json', 'jsonc' },
+            root_markers = { 'package.json', '.git', 'config.jsonc' },
+        }
+
+        vim.lsp.config['hls'] = {
+            cmd = { 'haskell-language-server-wrapper', '--lsp' },
+            filetypes = { 'haskell', 'lhaskell' },
+            root_markers = { 'stack.yaml', 'cabal.project', 'package.yaml', '*.cabal', 'hie.yaml', '.git' },
+            settings = {
+                haskell = {
+                    formattingProvider = 'fourmolu',
+                    plugin = {
+                        semanticTokens = { globalOn = false },
+                    },
+                },
+            },
+        }
+
+        vim.lsp.config['gopls'] = {
+            cmd = { 'gopls' },
+            filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
+            root_markers = { 'go.mod', 'go.work', '.git' },
+            settings = {
+                gopls = {
+                    analyses = {
+                        unusedparams = false,
+                        ST1003 = false,
+                        ST1000 = false,
+                    },
+                    staticcheck = true,
+                },
+            },
+        }
+
+        vim.lsp.config['templ'] = {
+            cmd = { 'templ', 'lsp' },
+            filetypes = { 'templ' },
+            root_markers = { 'go.mod', '.git' },
+        }
+
+        -- Add missing filetype mappings
+        vim.filetype.add({
+            extension = {
+                h = 'c',
+                c3 = 'c3',
+                d = 'd',
+                templ = 'templ',
+            },
+        })
+
+        -- Enable all configured LSP servers (except the global '*')
+        for name, _ in pairs(vim.lsp.config._configs) do
+            if name ~= '*' then
+                vim.lsp.enable(name)
+            end
+        end
+    end,
+}
